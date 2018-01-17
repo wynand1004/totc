@@ -5,6 +5,7 @@
 # Import SPGL
 import spgl
 import math
+import random
 
 # Create Classes
 class Totc(spgl.Game):
@@ -84,13 +85,34 @@ class Powerblock(spgl.Sprite):
         elif self.type == "weapon":
             self.shape("triangle")
 
+class Weapon(spgl.Sprite):
+    def __init__(self, shape, color, x, y):
+        spgl.Sprite.__init__(self, shape, color, x, y)
+        self.status = "ready"
+        self.speed = 10
+    
+    def tick(self):
+        # Check if active
+        if self.status == "active":
+            # Move self towards enemy
+            self.sety(self.ycor() + self.speed)
+
+        # Boundary checking
+        if self.ycor() > 400:
+            self.reset()
+
+    def reset(self):
+        self.status = "ready"
+        self.goto(10000, 10000)
+
 # Create Functions
 
 # Initial Game setup
 game = Totc(800, 600, "white", "Tale of Two Cities /u/wynand1004 AKA @TokyoEdTech", 0)
 
 # Create Sprites
-
+player_weapon = Weapon("triangle", "red", 10000, 10000)
+player_weapon.setheading(90)
 # Create Labels
 
 # Create Buttons
@@ -102,4 +124,16 @@ while True:
     game.tick()
 
     # Do calculations
+    if random.randint(0, 30) == 0 and player_weapon.status == "ready":
+        player_weapon.goto(random.randint(-290, 290), 0)
+        player_weapon.status = "active"
 
+
+    # Check for collision with enemy
+    for y in range(len(game.grid)):
+        for x in range(len(game.grid[y])):
+            enemy_powerblock = game.grid[y][x]
+            if enemy_powerblock.color()[0] == "green" and game.is_collision(player_weapon, enemy_powerblock):
+                print("Collision")
+                enemy_powerblock.color("black")
+                player_weapon.reset()
