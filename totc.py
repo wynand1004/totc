@@ -5,7 +5,6 @@
 # Import SPGL
 import spgl
 import math
-import random
 
 # Create Classes
 class Totc(spgl.Game):
@@ -20,14 +19,14 @@ class Totc(spgl.Game):
         for grid_y in range(0, 10):
             for grid_x in range(0, 40):
                 screen_x, screen_y = self.convert_grid_xy_to_screen_xy(grid_x, grid_y)
-                self.grid[grid_y].append(Powerblock("square", "black", screen_x, screen_y))                
+                self.grid[grid_y].append(Powerblock("square", "white", screen_x, screen_y))                
                 self.grid[grid_y][grid_x].shapesize(0.9, 0.9, None)
                 self.grid[grid_y][grid_x].setheading(90)
 
         for grid_y in range(20, 30):
             for grid_x in range(0, 40):
                 screen_x, screen_y = self.convert_grid_xy_to_screen_xy(grid_x, grid_y)
-                self.grid[grid_y].append(Powerblock("square", "black", screen_x, screen_y))                
+                self.grid[grid_y].append(Powerblock("square", "white", screen_x, screen_y))                
                 self.grid[grid_y][grid_x].shapesize(0.9, 0.9, None)
                 self.grid[grid_y][grid_x].setheading(90)
 
@@ -64,7 +63,7 @@ class Totc(spgl.Game):
 class Powerblock(spgl.Sprite):
     def __init__(self, shape, color, x, y):
         spgl.Sprite.__init__(self, shape, color, x, y)
-        self.power = 100
+        self.power = 10
         self.type = "power"
 
     def change_type(self):
@@ -85,34 +84,43 @@ class Powerblock(spgl.Sprite):
         elif self.type == "weapon":
             self.shape("triangle")
 
+    def destroy(self):
+        self.power = 0
+        self.goto(-1000, 0)
+        self.type = "deactivated"
+
+
 class Weapon(spgl.Sprite):
     def __init__(self, shape, color, x, y):
         spgl.Sprite.__init__(self, shape, color, x, y)
-        self.status = "ready"
-        self.speed = 10
-    
-    def tick(self):
-        # Check if active
-        if self.status == "active":
-            # Move self towards enemy
-            self.sety(self.ycor() + self.speed)
-
-        # Boundary checking
-        if self.ycor() > 400:
-            self.reset()
+        self.power = 0
+        self.speed = 5
+        self.setheading(90)
+        self.state = "inactive"
 
     def reset(self):
-        self.status = "ready"
-        self.goto(10000, 10000)
+        self.setx(-1000)
+        self.state = "inactive"
+
+    def tick(self):
+        if self.state == "active":
+            self.sety(self.ycor() + self.speed)
+
+            # Check if it is off the screen
+            if self.ycor() > 400:
+                self.destroy()
+
 
 # Create Functions
 
 # Initial Game setup
-game = Totc(800, 600, "white", "Tale of Two Cities /u/wynand1004 AKA @TokyoEdTech", 0)
+game = Totc(800, 600, "black", "Tale of Two Cities /u/wynand1004 AKA @TokyoEdTech", 0)
 
 # Create Sprites
-player_weapon = Weapon("triangle", "red", 10000, 10000)
-player_weapon.setheading(90)
+weapons = []
+for _ in range(40):
+    weapons.append(Weapon("triangle", "red", -1000, 0))
+
 # Create Labels
 
 # Create Buttons
@@ -123,17 +131,36 @@ while True:
     # Call the game tick method
     game.tick()
 
-    # Do calculations
-    if random.randint(0, 30) == 0 and player_weapon.status == "ready":
-        player_weapon.goto(random.randint(-290, 290), 0)
-        player_weapon.status = "active"
+    # Do calculations for player
+    # Iterate through column from bottom to top
+    for grid_x in range(40):
+        column_power = 0
+        for grid_y in range(29, 19, -1):
+            block = game.grid[grid_y][grid_x]
+            # Calculate the power for block and add to total
+            if block.type == "power":
+                column_power += block.power
+
+            # If the top is a weapon, shoot with the power available            
+            elif block.type == "weapon" and weapons[grid_x].state == "inactive":
+                weapons[grid_x].goto(block.xcor(), block.ycor())
+                weapons[grid_x].state = "active"
+                weapons[grid_x].power = column_power
+                weapons[grid_x].speed = column_power / 5
+
+                print(grid_x, column_power)
 
 
-    # Check for collision with enemy
-    for y in range(len(game.grid)):
-        for x in range(len(game.grid[y])):
-            enemy_powerblock = game.grid[y][x]
-            if enemy_powerblock.color()[0] == "green" and game.is_collision(player_weapon, enemy_powerblock):
-                print("Collision")
-                enemy_powerblock.color("black")
-                player_weapon.reset()
+    # Check for collisions
+    for weapon in weapons:
+        for grid_y in game.grid:
+            for grid_x in range(39):
+                if grid_y:
+                    block = grid_y[grid_x]
+                    if block.color()[0] == "green" and game.is_collision(weapon, block):
+                        block.destroy()
+                        weapon.reset()
+
+    
+
+
