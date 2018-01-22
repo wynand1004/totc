@@ -34,10 +34,12 @@ class Totc(spgl.Game):
         # Draw green city foundation
         for grid_x in range(0, 40):
             self.grid[0][grid_x].color("green")
+            self.grid[0][grid_x].team = "enemy"
 
         # Draw red city foundation
         for grid_x in range(0, 40):
             self.grid[29][grid_x].color("red")
+            self.grid[29][grid_x].team = "player"
 
     def click(self, screen_x, screen_y):
         grid_x, grid_y = self.convert_screen_xy_to_grid_xy(screen_x, screen_y)
@@ -49,6 +51,7 @@ class Totc(spgl.Game):
         # Check to make sure block below is red 
         elif self.grid[grid_y+1][grid_x].color()[0] == "red" and (grid_y > 19 and grid_y < 29):    
             self.grid[grid_y][grid_x].color("red")
+            self.grid[grid_y][grid_x].team = "player"
 
     def convert_screen_xy_to_grid_xy(self,screen_x,screen_y):
         grid_x = math.floor((screen_x + 400) / 20)
@@ -65,6 +68,7 @@ class Powerblock(spgl.Sprite):
         spgl.Sprite.__init__(self, shape, color, x, y)
         self.power = 10
         self.type = "power"
+        self.team = ""
 
     def change_type(self):
         if self.type == "power":
@@ -88,6 +92,16 @@ class Powerblock(spgl.Sprite):
         self.power = 0
         self.goto(-1000, 0)
         self.type = "deactivated"
+
+    def tick(self):
+        
+        # Change color based on power
+        # Enemy
+        if self.team == "enemy":
+            if self.power > 5:
+                self.color("green")
+            else:
+                self.color("lightgreen")
 
 
 class Weapon(spgl.Sprite):
@@ -117,6 +131,7 @@ class Weapon(spgl.Sprite):
 game = Totc(800, 600, "black", "Tale of Two Cities /u/wynand1004 AKA @TokyoEdTech", 0)
 
 # Create Sprites
+# Player weapons
 weapons = []
 for _ in range(40):
     weapons.append(Weapon("triangle", "red", -1000, 0))
@@ -157,8 +172,13 @@ while True:
             for grid_x in range(39):
                 if grid_y:
                     block = grid_y[grid_x]
-                    if block.color()[0] == "green" and game.is_collision(weapon, block):
-                        block.destroy()
+                    if block.team == "enemy" and game.is_collision(weapon, block):
+                        # Subtract weapon power / 10 from block power
+                        block.power -= weapon.power / 10
+                        # Check if block is below 0 and destroy if so
+                        if block.power <= 0:
+                            block.destroy()
+                        # Reset the weapon
                         weapon.reset()
 
     
